@@ -3,7 +3,8 @@ name: Build JARVIS APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -13,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get project
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Install Java
@@ -24,8 +25,10 @@ jobs:
 
       - name: Install Android SDK
         uses: android-actions/setup-android@v4
-        with:
-          packages: 'platforms;android-35,build-tools;35.0.0'
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -35,7 +38,7 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
 
-      - name: Save APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: JarvisAI-debug
