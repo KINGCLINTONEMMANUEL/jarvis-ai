@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050b14">
+<title>JARVIS AI</title>
+
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  background: radial-gradient(ellipse at center,#10283a,#050b14 70%);
+  color: #e9faff; font-family: Arial,sans-serif;
+}
+main {
+  width: min(100%,520px); min-height: 100vh;
+  margin: auto; padding: 28px 20px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 20px;
+}
+h1 { color: #45dfff; letter-spacing: 7px; margin: 12px 0 0; }
+.sub { color: #7da8b9; font-size: 11px; letter-spacing: 3px; }
+.orb {
+  width: 190px; height: 190px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 2px solid #45dfff;
+  box-shadow: 0 0 24px #1cbbff80,inset 0 0 25px #1cbbff55;
+  margin: 26px auto 4px;
+  animation: pulse 3s infinite ease-in-out;
+}
+.orb-inner {
+  width: 140px; height: 140px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: radial-gradient(circle,#174a64,#071421);
+  color: #45dfff; font-size: 18px; letter-spacing: 3px;
+}
+@keyframes pulse {
+  50% { box-shadow: 0 0 40px #1cbbffbb,inset 0 0 30px #1cbbff88; }
+}
+#status { color: #45dfff; font-size: 13px; }
+.panel {
+  width: 100%; border: 1px solid #24536b;
+  border-radius: 15px; padding: 15px;
+  background: #081522dd;
+}
+#reply { min-height: 44px; line-height: 1.5; white-space: pre-wrap; }
+input {
+  width: 100%; padding: 14px; border-radius: 10px;
+  border: 1px solid #286078; background: #06101b;
+  color: white; font-size: 15px; outline: none;
+}
+.row { display: flex; gap: 9px; width: 100%; }
+button {
+  border: 1px solid #45dfff; border-radius: 10px;
+  background: #0d3042; color: #c8f8ff;
+  padding: 12px 14px; font-size: 13px;
+}
+button:active { background: #17617b; }
+.row button { flex: 1; }
+.small { color: #7995a5; font-size: 11px; text-align: center; }
+</style>
+</head>
+
+<body>
+<main>
+  <h1>J.A.R.V.I.S</h1>
+  <div class="sub">PERSONAL AI SYSTEM</div>
+
+  <div class="orb">
+    <div class="orb-inner">JARVIS</div>
+  </div>
+
+  <div id="status">SYSTEM ONLINE · OFFLINE MODE</div>
+
+  <section class="panel">
+    <div class="sub">ASSISTANT RESPONSE</div>
+    <p id="reply">Hello. I'm ready to assist you.</p>
+  </section>
+
+  <input id="question" placeholder="Ask JARVIS something..."
+         autocomplete="off">
+
+  <div class="row">
+    <button onclick="ask()">SEND</button>
+    <button onclick="listen()">VOICE</button>
+  </div>
+
+  <div class="row">
+    <button onclick="search()">WEB SEARCH</button>
+    <button onclick="openSettings()">PHONE SETTINGS</button>
+  </div>
+
+  <section class="panel">
+    <div class="sub">SAVED MEMORY</div>
+    <p id="memories">No memories saved.</p>
+    <button onclick="clearMemory()">CLEAR MEMORY</button>
+  </section>
+
+  <div class="small">
+    JARVIS AI · Prototype 1.0 · Voice permission required
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function setStatus(text) {
+  $("status").textContent = text;
+}
+
+function showMessage(text) {
+  $("reply").textContent = text;
+}
+
+function say(text) {
+  showMessage(text);
+  if (window.Jarvis) Jarvis.speak(text);
+}
+
+function getMemories() {
+  try {
+    return JSON.parse(localStorage.getItem("jarvis_memories") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function refreshMemory() {
+  const memories = getMemories();
+  $("memories").textContent = memories.length
+    ? memories.map((m, i) => (i + 1) + ". " + m).join("\n")
+    : "No memories saved.";
+}
+
+function remember(text) {
+  const memories = getMemories();
+  memories.push(text);
+  localStorage.setItem("jarvis_memories",
+                       JSON.stringify(memories.slice(-30)));
+  refreshMemory();
+}
+
+function ask() {
+  const input = $("question");
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = "";
+  processInput(text);
+}
+
+function processInput(text) {
+  const lower = text.toLowerCase();
+
+  if (lower.startsWith("remember ")) {
+    const fact = text.slice(9).trim();
+    if (fact) {
+      remember(fact);
+      say("I have saved that memory on this device.");
+    }
+    return;
+  }
+
+  if (lower.includes("what do you remember")) {
+    const memories = getMemories();
+    say(memories.length
+      ? "Here is what I remember: " + memories.join("; ")
+      : "I have no saved memories yet.");
+    return;
+  }
+
+  if (lower.includes("what time is it")) {
+    say("The time on your phone is " +
+        new Date().toLocaleTimeString());
+    return;
+  }
+
+  if (lower.includes("open settings")) {
+    openSettings();
+    say("Opening phone settings.");
+    return;
+  }
+
+  if (lower.startsWith("search for ")) {
+    if (window.Jarvis) Jarvis.searchWeb(text.slice(11));
+    return;
+  }
+
+  say("I'm running in prototype mode. I can save memories, tell the time, and open web searches. Connect a local AI model to enable intelligent answers.");
+}
+
+function handleVoiceResult(text) {
+  $("question").value = text;
+  processInput(text);
+  setStatus("SYSTEM ONLINE");
+}
+
+function listen() {
+  if (window.Jarvis) {
+    setStatus("STARTING MICROPHONE...");
+    Jarvis.listen();
+  } else {
+    showMessage("Open this app in the JARVIS Android APK to use voice.");
+  }
+}
+
+function search() {
+  const q = $("question").value.trim();
+  if (!q) {
+    showMessage("Type a search query first.");
+    return;
+  }
+  if (window.Jarvis) Jarvis.searchWeb(q);
+}
+
+function openSettings() {
+  if (window.Jarvis) Jarvis.openSettings();
+}
+
+function clearMemory() {
+  localStorage.removeItem("jarvis_memories");
+  refreshMemory();
+  showMessage("Saved memories cleared from this device.");
+}
+
+$("question").addEventListener("keydown", e => {
+  if (e.key === "Enter") ask();
+});
+
+refreshMemory();
+</script>
+</body>
+</html>
