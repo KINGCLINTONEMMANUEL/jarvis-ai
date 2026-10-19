@@ -8,7 +8,7 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.example.jarvisai.test'
+        applicationId 'com.example.jarvisai.test
         minSdk 23
         targetSdk 35
         versionCode 1
