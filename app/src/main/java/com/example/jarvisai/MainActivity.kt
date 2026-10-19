@@ -1,3 +1,4 @@
+
 package com.example.jarvisai
 
 import android.app.Activity
@@ -16,13 +17,21 @@ import android.net.Uri
 import android.graphics.Color
 import android.view.ViewGroup
 import org.json.JSONObject
+import org.json.JSONArray
+import java.net.HttpURLConnection
+import java.net.URL
+import java.io.OutputStreamWriter
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.util.Locale
+import java.util.concurrent.Executors
 
 class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     private lateinit var web: WebView
     private lateinit var tts: TextToSpeech
     private var recognizer: SpeechRecognizer? = null
+    private val aiExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +64,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     private fun tellPage(functionCall: String) {
         runOnUiThread {
-            web.evaluateJavascript(functionCall, null)
+            if (::web.isInitialized) {
+                web.evaluateJavascript(functionCall, null)
+            }
         }
     }
 
@@ -76,6 +87,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
+
             override fun onEndOfSpeech() {
                 tellPage("setStatus('Thinking...')")
             }
@@ -109,7 +121,90 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         recognizer?.startListening(intent)
     }
 
+    private fun askLocalAI(prompt: String) {
+        aiExecutor.execute {
+            var connection: HttpURLConnection? = null
+
+            try {
+                connection = URL(
+                    "http://127.0.0.1:8080/v1/chat/completions"
+                ).openConnection() as HttpURLConnection
+
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 120000
+                connection.doOutput = true
+                connection.setRequestProperty(
+                    "Content-Type", "application/json"
+                )
+
+                val messages = JSONArray().put(
+                    JSONObject()
+                        .put("role", "user")
+                        .put(
+                            "content",
+                            "You are JARVIS, a helpful personal AI assistant. " +
+                            "Answer clearly and honestly. Do not invent " +
+                            "personal history or facts. User: $prompt"
+                        )
+                )
+
+                val request = JSONObject()
+                    .put("messages", messages)
+                    .put("max_tokens", 160)
+                    .put("temperature", 0.7)
+
+                OutputStreamWriter(
+                    connection.outputStream, Charsets.UTF_8
+                ).use {
+                    it.write(request.toString())
+                }
+
+                val code = connection.responseCode
+                val stream = if (code in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                }
+
+                val responseText = BufferedReader(
+                    InputStreamReader(stream, Charsets.UTF_8)
+                ).use { it.readText() }
+
+                if (code !in 200..299) {
+                    throw Exception("Local server returned HTTP $code")
+                }
+
+                val json = JSONObject(responseText)
+                val reply = json
+                    .getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                    .getString("content")
+                    .trim()
+
+                tellPage(
+                    "handleAIResult(true, ${JSONObject.quote(reply)})"
+                )
+            } catch (e: Exception) {
+                tellPage(
+                    "handleAIResult(false, " +
+                    "${JSONObject.quote("Local AI unavailable. Start the " +
+                    "llama-server in Termux and try again.")})"
+                )
+            } finally {
+                connection?.disconnect()
+            }
+        }
+    }
+
     inner class Bridge {
+        @JavascriptInterface
+        fun askAI(prompt: String) {
+            if (prompt.isBlank()) return
+            askLocalAI(prompt.take(2000))
+        }
+
         @JavascriptInterface
         fun listen() {
             runOnUiThread {
@@ -151,7 +246,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         @JavascriptInterface
         fun openSettings() {
             runOnUiThread {
-                startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
+                startActivity(
+                    Intent(android.provider.Settings.ACTION_SETTINGS)
+                )
             }
         }
     }
@@ -161,24 +258,31 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        super.onRequestPermissionsResult(
+            requestCode, permissions, grantResults
+        )
 
         if (requestCode == 101) {
             if (grantResults.isNotEmpty() &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startRecognition()
             } else {
-                tellPage("showMessage('Microphone permission is required for voice input.')")
+                tellPage(
+                    "showMessage('Microphone permission is required for voice input.')"
+                )
             }
         }
     }
 
     override fun onDestroy() {
         recognizer?.destroy()
+
         if (::tts.isInitialized) {
             tts.stop()
             tts.shutdown()
         }
+
+        aiExecutor.shutdownNow()
         web.destroy()
         super.onDestroy()
     }

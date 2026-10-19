@@ -9,56 +9,108 @@
 <style>
 * { box-sizing: border-box; }
 body {
-  margin: 0; min-height: 100vh;
+  margin: 0;
+  min-height: 100vh;
   background: radial-gradient(ellipse at center,#10283a,#050b14 70%);
-  color: #e9faff; font-family: Arial,sans-serif;
+  color: #e9faff;
+  font-family: Arial,sans-serif;
 }
 main {
-  width: min(100%,520px); min-height: 100vh;
-  margin: auto; padding: 28px 20px;
-  display: flex; flex-direction: column;
-  align-items: center; gap: 20px;
+  width: min(100%,520px);
+  min-height: 100vh;
+  margin: auto;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
-h1 { color: #45dfff; letter-spacing: 7px; margin: 12px 0 0; }
-.sub { color: #7da8b9; font-size: 11px; letter-spacing: 3px; }
+h1 {
+  color: #45dfff;
+  letter-spacing: 7px;
+  margin: 12px 0 0;
+}
+.sub {
+  color: #7da8b9;
+  font-size: 11px;
+  letter-spacing: 3px;
+}
 .orb {
-  width: 190px; height: 190px; border-radius: 50%;
-  display: grid; place-items: center;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
   border: 2px solid #45dfff;
   box-shadow: 0 0 24px #1cbbff80,inset 0 0 25px #1cbbff55;
   margin: 26px auto 4px;
   animation: pulse 3s infinite ease-in-out;
 }
 .orb-inner {
-  width: 140px; height: 140px; border-radius: 50%;
-  display: grid; place-items: center;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
   background: radial-gradient(circle,#174a64,#071421);
-  color: #45dfff; font-size: 18px; letter-spacing: 3px;
+  color: #45dfff;
+  font-size: 18px;
+  letter-spacing: 3px;
 }
 @keyframes pulse {
-  50% { box-shadow: 0 0 40px #1cbbffbb,inset 0 0 30px #1cbbff88; }
+  50% {
+    box-shadow: 0 0 40px #1cbbffbb,inset 0 0 30px #1cbbff88;
+  }
 }
-#status { color: #45dfff; font-size: 13px; }
+#status {
+  color: #45dfff;
+  font-size: 13px;
+  text-align: center;
+}
 .panel {
-  width: 100%; border: 1px solid #24536b;
-  border-radius: 15px; padding: 15px;
+  width: 100%;
+  border: 1px solid #24536b;
+  border-radius: 15px;
+  padding: 15px;
   background: #081522dd;
 }
-#reply { min-height: 44px; line-height: 1.5; white-space: pre-wrap; }
-input {
-  width: 100%; padding: 14px; border-radius: 10px;
-  border: 1px solid #286078; background: #06101b;
-  color: white; font-size: 15px; outline: none;
+#reply {
+  min-height: 44px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-.row { display: flex; gap: 9px; width: 100%; }
+input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #286078;
+  background: #06101b;
+  color: white;
+  font-size: 15px;
+  outline: none;
+}
+.row {
+  display: flex;
+  gap: 9px;
+  width: 100%;
+}
 button {
-  border: 1px solid #45dfff; border-radius: 10px;
-  background: #0d3042; color: #c8f8ff;
-  padding: 12px 14px; font-size: 13px;
+  border: 1px solid #45dfff;
+  border-radius: 10px;
+  background: #0d3042;
+  color: #c8f8ff;
+  padding: 12px 14px;
+  font-size: 13px;
+  cursor: pointer;
 }
 button:active { background: #17617b; }
 .row button { flex: 1; }
-.small { color: #7995a5; font-size: 11px; text-align: center; }
+.small {
+  color: #7995a5;
+  font-size: 11px;
+  text-align: center;
+}
 </style>
 </head>
 
@@ -71,14 +123,15 @@ button:active { background: #17617b; }
     <div class="orb-inner">JARVIS</div>
   </div>
 
-  <div id="status">SYSTEM ONLINE · OFFLINE MODE</div>
+  <div id="status">SYSTEM READY</div>
 
   <section class="panel">
     <div class="sub">ASSISTANT RESPONSE</div>
     <p id="reply">Hello. I'm ready to assist you.</p>
   </section>
 
-  <input id="question" placeholder="Ask JARVIS something..."
+  <input id="question"
+         placeholder="Ask JARVIS something..."
          autocomplete="off">
 
   <div class="row">
@@ -98,12 +151,13 @@ button:active { background: #17617b; }
   </section>
 
   <div class="small">
-    JARVIS AI · Prototype 1.0 · Voice permission required
+    JARVIS AI · Local AI Prototype · Voice permission required
   </div>
 </main>
 
 <script>
 const $ = id => document.getElementById(id);
+let waitingForAI = false;
 
 function setStatus(text) {
   $("status").textContent = text;
@@ -115,19 +169,33 @@ function showMessage(text) {
 
 function say(text) {
   showMessage(text);
-  if (window.Jarvis) Jarvis.speak(text);
+  if (window.Jarvis) {
+    Jarvis.speak(String(text).slice(0, 1500));
+  }
+}
+
+function handleAIResult(success, text) {
+  waitingForAI = false;
+  setStatus(success ? "LOCAL AI READY" : "LOCAL AI UNAVAILABLE");
+
+  if (success) {
+    say(text);
+  } else {
+    showMessage(text);
+  }
 }
 
 function getMemories() {
   try {
     return JSON.parse(localStorage.getItem("jarvis_memories") || "[]");
-  } catch {
+  } catch (error) {
     return [];
   }
 }
 
 function refreshMemory() {
   const memories = getMemories();
+
   $("memories").textContent = memories.length
     ? memories.map((m, i) => (i + 1) + ". " + m).join("\n")
     : "No memories saved.";
@@ -136,15 +204,28 @@ function refreshMemory() {
 function remember(text) {
   const memories = getMemories();
   memories.push(text);
-  localStorage.setItem("jarvis_memories",
-                       JSON.stringify(memories.slice(-30)));
+
+  localStorage.setItem(
+    "jarvis_memories",
+    JSON.stringify(memories.slice(-30))
+  );
+
   refreshMemory();
 }
 
 function ask() {
+  if (waitingForAI) {
+    showMessage("Please wait for the current response.");
+    return;
+  }
+
   const input = $("question");
   const text = input.value.trim();
-  if (!text) return;
+
+  if (!text) {
+    showMessage("Type a question first.");
+    return;
+  }
 
   input.value = "";
   processInput(text);
@@ -155,18 +236,22 @@ function processInput(text) {
 
   if (lower.startsWith("remember ")) {
     const fact = text.slice(9).trim();
+
     if (fact) {
       remember(fact);
       say("I have saved that memory on this device.");
+      setStatus("MEMORY SAVED");
     }
     return;
   }
 
   if (lower.includes("what do you remember")) {
     const memories = getMemories();
+
     say(memories.length
       ? "Here is what I remember: " + memories.join("; ")
       : "I have no saved memories yet.");
+
     return;
   }
 
@@ -176,24 +261,43 @@ function processInput(text) {
     return;
   }
 
-  if (lower.includes("open settings")) {
+  if (lower === "open settings" ||
+      lower === "open phone settings") {
     openSettings();
     say("Opening phone settings.");
     return;
   }
 
   if (lower.startsWith("search for ")) {
-    if (window.Jarvis) Jarvis.searchWeb(text.slice(11));
+    if (window.Jarvis) {
+      Jarvis.searchWeb(text.slice(11).trim());
+    } else {
+      showMessage("Open JARVIS in the Android app to search the web.");
+    }
     return;
   }
 
-  say("I'm running in prototype mode. I can save memories, tell the time, and open web searches. Connect a local AI model to enable intelligent answers.");
+  if (!window.Jarvis) {
+    showMessage("Open JARVIS in the Android app to use the local AI.");
+    return;
+  }
+
+  waitingForAI = true;
+  setStatus("LOCAL AI THINKING");
+  showMessage("JARVIS is thinking...");
+
+  try {
+    Jarvis.askAI(text);
+  } catch (error) {
+    waitingForAI = false;
+    setStatus("LOCAL AI ERROR");
+    showMessage("Could not contact the local AI bridge. Please try again.");
+  }
 }
 
 function handleVoiceResult(text) {
   $("question").value = text;
   processInput(text);
-  setStatus("SYSTEM ONLINE");
 }
 
 function listen() {
@@ -206,26 +310,39 @@ function listen() {
 }
 
 function search() {
-  const q = $("question").value.trim();
-  if (!q) {
+  const query = $("question").value.trim();
+
+  if (!query) {
     showMessage("Type a search query first.");
     return;
   }
-  if (window.Jarvis) Jarvis.searchWeb(q);
+
+  if (window.Jarvis) {
+    Jarvis.searchWeb(query);
+  } else {
+    showMessage("Web search requires the Android app.");
+  }
 }
 
 function openSettings() {
-  if (window.Jarvis) Jarvis.openSettings();
+  if (window.Jarvis) {
+    Jarvis.openSettings();
+  } else {
+    showMessage("Phone settings are available in the Android app.");
+  }
 }
 
 function clearMemory() {
   localStorage.removeItem("jarvis_memories");
   refreshMemory();
   showMessage("Saved memories cleared from this device.");
+  setStatus("MEMORY CLEARED");
 }
 
-$("question").addEventListener("keydown", e => {
-  if (e.key === "Enter") ask();
+$("question").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    ask();
+  }
 });
 
 refreshMemory();
